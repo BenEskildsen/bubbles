@@ -45,11 +45,11 @@ const tick = (state) => {
     // tweak velocity
     bubble.velocity = add(bubble.velocity,
       {
-        x: normalIn(-10, 10) / 20,
-        y: normalIn(-10, 10) / 10,
+        x: normalIn(-10, 10) / 40,
+        y: normalIn(-10, 10) / 20,
       }
     );
-    bubble.velocity.y = clamp(bubble.velocity.y, -3, -0.2);
+    bubble.velocity.y = clamp(bubble.velocity.y, -1, -0.2);
 
     // remove bubbles that have gone out the top of the screen
     if (bubble.position.y > -1 * bubble.radius) {

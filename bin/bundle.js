@@ -1,11 +1,11 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 const config = {
-  msPerTick: 40,
+  msPerTick: 45,
   worldSize: {
-    width: 400,
+    width: 500,
     height: 300
   },
-  spawnRate: 0.3
+  spawnRate: 0.08
 };
 module.exports = {
   config
@@ -86,10 +86,10 @@ const tick = state => {
     bubble.position = add(bubble.position, bubble.velocity);
     // tweak velocity
     bubble.velocity = add(bubble.velocity, {
-      x: normalIn(-10, 10) / 20,
-      y: normalIn(-10, 10) / 10
+      x: normalIn(-10, 10) / 40,
+      y: normalIn(-10, 10) / 20
     });
-    bubble.velocity.y = clamp(bubble.velocity.y, -3, -0.2);
+    bubble.velocity.y = clamp(bubble.velocity.y, -1, -0.2);
 
     // remove bubbles that have gone out the top of the screen
     if (bubble.position.y > -1 * bubble.radius) {
@@ -259,7 +259,7 @@ const makeRandomBubble = () => {
     width,
     height
   } = config.worldSize;
-  return makeBubble(randomIn(5, 20), {
+  return makeBubble(randomIn(12, 35), {
     x: randomIn(0, width),
     y: height + 24
   }, {

@@ -14,7 +14,7 @@ const makeBubble = (
 const makeRandomBubble = () => {
   const {width, height} = config.worldSize;
   return makeBubble(
-    randomIn(5, 20),
+    randomIn(12, 35),
     {x: randomIn(0, width), y: height + 24},
     {x: 0, y: -1 * normalIn(0, 100) / 80},
   );

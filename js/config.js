@@ -1,8 +1,8 @@
 
 const config = {
-  msPerTick: 40,
-  worldSize: {width: 400, height: 300},
-  spawnRate: 0.3,
+  msPerTick: 45,
+  worldSize: {width: 500, height: 300},
+  spawnRate: 0.08,
 }
 
 module.exports = {
