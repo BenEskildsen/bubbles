@@ -62,7 +62,10 @@ const tick = (state) => {
     nextBubbles.push(makeRandomBubble());
   }
 
-  return {...state, bubbles: nextBubbles};
+  return {
+    ...state,
+    bubbles: nextBubbles.sort((a,b) => a.radius - b.radius),
+  };
 };
 
 

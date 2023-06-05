@@ -1,10 +1,12 @@
 const {randomIn, normalIn} = require('bens_utils').stochastic;
 const {config} = require('./config');
 
+let nextID = 1;
 const makeBubble = (
   radius, position, velocity,
 ) => {
   return {
+    id: nextID++,
     position,
     radius,
     velocity,

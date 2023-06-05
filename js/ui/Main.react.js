@@ -15,18 +15,23 @@ function Main(props) {
   window.dispatch = dispatch;
 
   useEffect(() => {
-    let tickInterval = setInterval(
-      () => {
-        dispatch({type: 'TICK'});
-        render(getState());
-      },
-      config.msPerTick,
-    );
+    let tickInterval;
+    if (!state.isPaused) {
+      tickInterval = setInterval(
+        () => {
+          dispatch({type: 'TICK'});
+          render(getState());
+        },
+        config.msPerTick,
+      );
+    } else {
+      clearInterval(tickInterval);
+    }
 
     return () => {
       clearInterval(tickInterval);
     };
-  }, []);
+  }, [state.isPaused]);
 
   useEffect(() => {
     if (window.innerWidth < window.innerHeight) {
@@ -34,6 +39,7 @@ function Main(props) {
         width: config.worldSize.height,
         height: config.worldSize.width,
       };
+      config.spawnRate = 0.05;
     }
   }, []);
 

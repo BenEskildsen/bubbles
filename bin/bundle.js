@@ -103,7 +103,7 @@ const tick = state => {
   }
   return {
     ...state,
-    bubbles: nextBubbles
+    bubbles: nextBubbles.sort((a, b) => a.radius - b.radius)
   };
 };
 
@@ -121,10 +121,14 @@ module.exports = {
 },{"../config":1,"../state":6,"bens_ui_components":31,"bens_utils":38,"react":46}],4:[function(require,module,exports){
 const {
   subtract,
-  vectorTheta
+  vectorTheta,
+  dist,
+  equals
 } = require('bens_utils').vectors;
 const {
-  intersectPoints
+  intersectCircles,
+  intersectLines,
+  intersectLineCircle
 } = require('./selectors/selectors');
 const {
   config
@@ -135,6 +139,8 @@ const render = state => {
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = 'darkgray';
   ctx.fillRect(0, 0, config.worldSize.width, config.worldSize.height);
+  let allLines = [];
+  // draw bubbles;
   for (let i = 0; i < state.bubbles.length; i++) {
     const bubble = state.bubbles[i];
     ctx.fillStyle = "steelblue";
@@ -147,27 +153,126 @@ const render = state => {
     ctx.stroke();
 
     // check for overlaps:
-    for (let j = i - 1; j > 0; j--) {
+    for (let j = i - 1; j >= 0; j--) {
       const other = state.bubbles[j];
-      const points = intersectPoints(bubble, other);
-      if (points.length == 0) continue;
+      const line = intersectCircles(bubble, other);
+      if (line.length == 0) continue;
       ctx.strokeStyle = "steelblue";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(bubble.position.x, bubble.position.y, bubble.radius,
-      // 0, 2 * Math.PI,
-      vectorTheta(subtract(points[0], bubble.position)), vectorTheta(subtract(points[1], bubble.position)));
+      ctx.arc(bubble.position.x, bubble.position.y, bubble.radius, vectorTheta(subtract(line[0], bubble.position)), vectorTheta(subtract(line[1], bubble.position)));
       ctx.stroke();
       ctx.closePath();
-      ctx.beginPath();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "blue";
-      ctx.moveTo(points[0].x, points[0].y);
-      ctx.lineTo(points[1].x, points[1].y);
-      ctx.stroke();
+      allLines.push({
+        line,
+        bubble,
+        other
+      });
     }
   }
+
+  // compute lines that intersect
+  for (let i = 0; i < allLines.length; i++) {
+    const line = allLines[i];
+
+    // for (let j = i + 1; j < allLines.length; j++) {
+    //   const other = allLines[j];
+    //   const point = intersectLines(line.line, other.line);
+    //   if (!point) continue;
+
+    //   let start = line.line[0];
+    //   let end = line.line[1];
+    //   if (
+    //     dist(start, other.bubble.position) < other.bubble.radius - 0.1 ||
+    //     dist(start, other.other.position) < other.other.radius - 0.1
+    //   ) {
+    //     start = point;
+    //   }
+    //   if (
+    //     dist(end, other.bubble.position) < other.bubble.radius - 0.1 ||
+    //     dist(end, other.other.position) < other.other.radius - 0.1
+    //   ) {
+    //     end = point;
+    //   }
+    //   line.line[0] = start;
+    //   line.line[1] = end;
+
+    //   start = other.line[0];
+    //   end = other.line[1];
+    //   if (
+    //     dist(start, line.bubble.position) < line.bubble.radius - 0.1 ||
+    //     dist(start, line.other.position) < line.other.radius - 0.1
+    //   ) {
+    //     start = point;
+    //   }
+    //   if (
+    //     dist(end, line.bubble.position) < line.bubble.radius - 0.1 ||
+    //     dist(end, line.other.position) < line.other.radius - 0.1
+    //   ) {
+    //     end = point;
+    //   }
+    //   other.line[0] = start;
+    //   other.line[1] = end;
+    // }
+    for (let j = i + 1; j < allLines.length; j++) {
+      const other = allLines[j];
+      const point = intersectLines(line.line, other.line);
+      if (!point) continue;
+      let start = line.line[0];
+      let end = line.line[1];
+      if (dist(start, other.bubble.position) < other.bubble.radius && line.bubble.id != other.bubble.id && line.other.id != other.bubble.id || dist(start, other.other.position) < other.other.radius && line.bubble.id != other.other.id && line.other.id != other.other.id) {
+        start = point;
+      }
+      if (dist(end, other.bubble.position) < other.bubble.radius && line.bubble.id != other.bubble.id && line.other.id != other.bubble.id || dist(end, other.other.position) < other.other.radius && line.bubble.id != other.other.id && line.other.id != other.other.id) {
+        end = point;
+      }
+      line.line[0] = start;
+      line.line[1] = end;
+      start = other.line[0];
+      end = other.line[1];
+      if (dist(start, line.bubble.position) < line.bubble.radius && other.bubble.id != line.bubble.id && other.other.id != line.bubble.id || dist(start, line.other.position) < line.other.radius && other.bubble.id != line.other.id && other.other.id != line.other.id) {
+        start = point;
+      }
+      if (dist(end, line.bubble.position) < line.bubble.radius && other.bubble.id != line.bubble.id && other.other.id != line.bubble.id || dist(end, line.other.position) < line.other.radius && other.bubble.id != line.other.id && other.other.id != line.other.id) {
+        end = point;
+      }
+      other.line[0] = start;
+      other.line[1] = end;
+    }
+  }
+
+  // filter lines that are entirely inside of a bubble:
+  const nextAllLines = [];
+  for (const line of allLines) {
+    let dontAdd = false;
+    for (const bubble of state.bubbles) {
+      if (line.bubble.id == bubble.id || line.other.id == bubble.id) continue;
+      if (dist(line.line[0], bubble.position) < bubble.radius && dist(line.line[1], bubble.position) < bubble.radius) {
+        dontAdd = true;
+        break;
+      }
+    }
+    if (!dontAdd) {
+      nextAllLines.push(line);
+    }
+  }
+  allLines = nextAllLines;
+
+  // draw lines between bubbles
+  ctx.lineWidth = 2;
+  let i = 0;
+  ctx.strokeStyle = "blue";
+  for (const line of allLines) {
+    const start = line.line[0];
+    const end = line.line[1];
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+    i++;
+  }
 };
+window.render = render;
 module.exports = {
   render
 };
@@ -195,7 +300,7 @@ const normalizePos = pos => {
 
 // x1,y1 is the center of the first circle, with radius r1
 // x2,y2 is the center of the second ricle, with radius r2
-function intersectPoints(circle1, circle2) {
+function intersectCircles(circle1, circle2) {
   const x1 = circle1.position.x;
   const y1 = circle1.position.y;
   const r1 = circle1.radius;
@@ -235,9 +340,136 @@ function intersectPoints(circle1, circle2) {
     y: iy2
   }];
 }
+function intersectLines(line1, line2) {
+  // extract the coordinates of the start and end points of each line
+  const {
+    x: x1,
+    y: y1
+  } = line1[0];
+  const {
+    x: x2,
+    y: y2
+  } = line1[1];
+  const {
+    x: x3,
+    y: y3
+  } = line2[0];
+  const {
+    x: x4,
+    y: y4
+  } = line2[1];
+
+  // calculate the denominator of the equations for the parameter values t and u
+  const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+
+  // if the denominator is zero, the lines are parallel and don't intersect
+  if (denom === 0) {
+    return null;
+  }
+
+  // calculate the parameter values for each line
+  const t = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+  const u = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+  // if the parameter values are outside the interval [0, 1], the lines don't intersect
+  if (t < 0 || t > 1 || u < 0 || u > 1) {
+    return null;
+  }
+
+  // calculate the intersection point
+  const x = x1 + t * (x2 - x1);
+  const y = y1 + t * (y2 - y1);
+  return {
+    x,
+    y
+  };
+}
+function intersectLineCircle(line, circle) {
+  // extract the coordinates of the start and end points of the line and the circle position and radius
+  const {
+    x: x1,
+    y: y1
+  } = line[0];
+  const {
+    x: x2,
+    y: y2
+  } = line[1];
+  const {
+    x: cx,
+    y: cy
+  } = circle.position;
+  const r = circle.radius;
+
+  // calculate the direction vector of the line
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  // calculate the coefficients of the quadratic equation for the intersection points
+  const a = dx * dx + dy * dy;
+  const b = 2 * dx * (x1 - cx) + 2 * dy * (y1 - cy);
+  const c = cx * cx + cy * cy + x1 * x1 + y1 * y1 - 2 * (cx * x1 + cy * y1) - r * r;
+
+  // calculate the discriminant of the quadratic equation
+  const disc = b * b - 4 * a * c;
+
+  // if the discriminant is negative, the line doesn't intersect the circle
+  if (disc < 0) {
+    return null;
+  }
+
+  // calculate the parameter values for the intersection points
+  const t1 = (-b - Math.sqrt(disc)) / (2 * a);
+  const t2 = (-b + Math.sqrt(disc)) / (2 * a);
+
+  // calculate the coordinates of the intersection points
+  const p1 = {
+    x: x1 + dx * t1,
+    y: y1 + dy * t1
+  };
+  const p2 = {
+    x: x1 + dx * t2,
+    y: y1 + dy * t2
+  };
+
+  // check if any of the intersection points lie on the line segment
+  const onSegment1 = isOnSegment(line, p1);
+  const onSegment2 = isOnSegment(line, p2);
+
+  // return the intersection point on the line segment or null if there is none
+  if (onSegment1) {
+    return p1;
+  } else if (onSegment2) {
+    return p2;
+  } else {
+    return null;
+  }
+}
+
+// helper function to check if a point is on a line segment
+function isOnSegment(line, point) {
+  const {
+    x: x1,
+    y: y1
+  } = line[0];
+  const {
+    x: x2,
+    y: y2
+  } = line[1];
+  const {
+    x,
+    y
+  } = point;
+  const minX = Math.min(x1, x2);
+  const maxX = Math.max(x1, x2);
+  const minY = Math.min(y1, y2);
+  const maxY = Math.max(y1, y2);
+  return x >= minX && x <= maxX && y >= minY && y <= maxY;
+}
 module.exports = {
   normalizePos,
-  intersectPoints
+  intersectCircles,
+  intersectLines,
+  intersectLineCircle
 };
 },{"../config":1,"bens_utils":38}],6:[function(require,module,exports){
 const {
@@ -247,8 +479,10 @@ const {
 const {
   config
 } = require('./config');
+let nextID = 1;
 const makeBubble = (radius, position, velocity) => {
   return {
+    id: nextID++,
     position,
     radius,
     velocity
@@ -301,22 +535,28 @@ function Main(props) {
   window.getState = getState;
   window.dispatch = dispatch;
   useEffect(() => {
-    let tickInterval = setInterval(() => {
-      dispatch({
-        type: 'TICK'
-      });
-      render(getState());
-    }, config.msPerTick);
+    let tickInterval;
+    if (!state.isPaused) {
+      tickInterval = setInterval(() => {
+        dispatch({
+          type: 'TICK'
+        });
+        render(getState());
+      }, config.msPerTick);
+    } else {
+      clearInterval(tickInterval);
+    }
     return () => {
       clearInterval(tickInterval);
     };
-  }, []);
+  }, [state.isPaused]);
   useEffect(() => {
     if (window.innerWidth < window.innerHeight) {
       config.worldSize = {
         width: config.worldSize.height,
         height: config.worldSize.width
       };
+      config.spawnRate = 0.05;
     }
   }, []);
   useMouseHandler('canvas', {
